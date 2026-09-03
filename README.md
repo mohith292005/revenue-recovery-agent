@@ -4,6 +4,14 @@ An intelligent, autonomous revenue recovery operations engine featuring dual-lay
 
 ---
 
+## 🌐 Try Live Demo
+
+**👉 [Live AI Revenue Recovery Agent](https://revenue-recovery-agent.streamlit.app/)**
+
+(Hosted on Streamlit Community Cloud - no auth required, runs with free-tier Gemini 2.5 Flash)
+
+---
+
 ## 🌟 Key Features
 
 - **📊 Live Recovery Dashboard**: Real-time batch transaction streaming, glowing KPI cards, dynamic SVG gradient recovery gauge, and interactive breakdown charts.
