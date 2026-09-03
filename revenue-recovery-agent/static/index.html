@@ -1,0 +1,1914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Revenue Recovery Agent — Live Dashboard</title>
+  <meta name="description" content="Real-time AI-powered revenue recovery operations dashboard with live transaction monitoring, customer risk profiling, and adaptive threshold tuning." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* ── Design Tokens ───────────────────────────────────────────────── */
+    :root {
+      --bg:         #080c14;
+      --bg2:        #0d1320;
+      --panel:      rgba(15, 22, 38, 0.85);
+      --panel-solid:#0f1626;
+      --border:     rgba(255,255,255,0.07);
+      --border2:    rgba(255,255,255,0.12);
+      --text:       #e8edf5;
+      --muted:      #6b7a99;
+      --muted2:     #8892ab;
+
+      --primary:    hsl(220,80%,62%);
+      --primary-glow: hsla(220,80%,62%,0.25);
+      --green:      hsl(142,60%,50%);
+      --green-glow: hsla(142,60%,50%,0.2);
+      --red:        hsl(0,75%,62%);
+      --red-glow:   hsla(0,75%,62%,0.2);
+      --amber:      hsl(38,90%,56%);
+      --amber-glow: hsla(38,90%,56%,0.2);
+      --purple:     hsl(260,70%,65%);
+      --teal:       hsl(180,60%,50%);
+
+      --sidebar-w:  220px;
+      --radius:     12px;
+      --radius-sm:  8px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      overflow: hidden;
+    }
+
+    /* ── Layout ──────────────────────────────────────────────────────── */
+    .app-shell {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ─────────────────────────────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      z-index: 10;
+    }
+
+    .sidebar-logo {
+      padding: 20px 18px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      font-size: 13px;
+      letter-spacing: -0.2px;
+      color: var(--text);
+    }
+
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, var(--primary), var(--purple));
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .logo-sub {
+      font-size: 10px;
+      font-weight: 400;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 12px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .nav-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      padding: 8px 8px 4px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      color: var(--muted2);
+      font-weight: 500;
+      font-size: 13px;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      position: relative;
+    }
+
+    .nav-item:hover {
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+    }
+
+    .nav-item.active {
+      background: rgba(88, 145, 255, 0.12);
+      color: var(--primary);
+    }
+
+    .nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: -10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 18px;
+      background: var(--primary);
+      border-radius: 0 3px 3px 0;
+    }
+
+    .nav-icon { font-size: 15px; width: 18px; text-align: center; }
+
+    .nav-badge {
+      margin-left: auto;
+      background: var(--red);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 10px;
+      min-width: 18px;
+      text-align: center;
+      display: none;
+    }
+
+    .nav-badge.visible { display: block; }
+
+    .sidebar-status {
+      padding: 12px 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    .status-dot {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+
+    .dot.running {
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      animation: pulse-dot 1.2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.8); }
+    }
+
+    /* ── Main content ─────────────────────────────────────────────────── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+      flex-shrink: 0;
+    }
+
+    .topbar-left h1 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .topbar-left p {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 1px;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .controls-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .input-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 4px 10px;
+    }
+
+    .input-group label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+    input[type=number] {
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      width: 52px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, hsl(220,80%,58%), hsl(240,70%,60%));
+      color: #fff;
+      box-shadow: 0 4px 12px hsla(220,80%,58%,0.35);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px hsla(220,80%,58%,0.5);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-ghost {
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      border: 1px solid var(--border2);
+    }
+
+    .btn-ghost:hover { background: rgba(255,255,255,0.10); }
+
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+    /* Progress */
+    .progress-wrap {
+      width: 140px;
+      height: 6px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--green));
+      width: 0%;
+      transition: width 0.3s ease;
+      border-radius: 3px;
+    }
+
+    #progressText {
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    /* ── Tab pages ───────────────────────────────────────────────────── */
+    .page { display: none; flex: 1; overflow-y: auto; padding: 20px 24px; }
+    .page.active { display: block; }
+
+    /* ── KPI Cards ───────────────────────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .kpi-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(12px);
+      transition: border-color 0.2s;
+    }
+
+    .kpi-card:hover { border-color: var(--border2); }
+
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+
+    .kpi-card.blue::before  { background: linear-gradient(90deg, var(--primary), var(--purple)); }
+    .kpi-card.green::before { background: linear-gradient(90deg, var(--green), var(--teal)); }
+    .kpi-card.amber::before { background: linear-gradient(90deg, var(--amber), hsl(20,90%,58%)); }
+    .kpi-card.red::before   { background: linear-gradient(90deg, var(--red), hsl(320,70%,60%)); }
+
+    .kpi-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      margin-bottom: 8px;
+    }
+
+    .kpi-value {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      line-height: 1;
+      transition: color 0.3s;
+    }
+
+    .kpi-card.blue  .kpi-value { color: var(--primary); }
+    .kpi-card.green .kpi-value { color: var(--green); }
+    .kpi-card.amber .kpi-value { color: var(--amber); }
+    .kpi-card.red   .kpi-value { color: var(--red); }
+
+    .kpi-sub {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .kpi-glow {
+      position: absolute;
+      bottom: -20px; right: -20px;
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      opacity: 0.07;
+      transition: opacity 0.3s;
+    }
+
+    .kpi-card.blue .kpi-glow  { background: var(--primary); }
+    .kpi-card.green .kpi-glow { background: var(--green); }
+    .kpi-card.amber .kpi-glow { background: var(--amber); }
+    .kpi-card.red .kpi-glow   { background: var(--red); }
+
+    .kpi-card:hover .kpi-glow { opacity: 0.14; }
+
+    /* ── Dashboard grid ──────────────────────────────────────────────── */
+    .dash-grid {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 16px;
+    }
+
+    .panel-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      backdrop-filter: blur(12px);
+    }
+
+    .panel-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-title-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--primary);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    /* Gauge */
+    .gauge-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .gauge-svg { width: 180px; height: 100px; overflow: visible; }
+
+    .gauge-value-label {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -1px;
+      margin-top: -8px;
+    }
+
+    .gauge-sub-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* Charts */
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 4px;
+    }
+
+    canvas { max-height: 200px; }
+
+    /* Feed table */
+    .feed-wrap { overflow-y: auto; max-height: 420px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+    th, td {
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      white-space: nowrap;
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      position: sticky;
+      top: 0;
+      background: var(--panel-solid);
+      z-index: 1;
+    }
+
+    tbody tr {
+      transition: background 0.15s;
+      animation: rowIn 0.25s ease forwards;
+    }
+
+    @keyframes rowIn {
+      from { opacity: 0; transform: translateX(-8px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    tbody tr:hover { background: rgba(255,255,255,0.03); }
+
+    /* Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+
+    .badge-escalate    { background: hsla(0,75%,62%,0.15); color: var(--red); }
+    .badge-retry       { background: hsla(142,60%,50%,0.15); color: var(--green); }
+    .badge-nudge       { background: hsla(220,80%,62%,0.15); color: var(--primary); }
+    .badge-retry_and_nudge { background: hsla(38,90%,56%,0.15); color: var(--amber); }
+    .badge-no_action   { background: rgba(107,122,153,0.15); color: var(--muted); }
+    .badge-skipped_duplicate { background: rgba(107,122,153,0.10); color: var(--muted); }
+    .badge-low      { background: hsla(142,60%,50%,0.15); color: var(--green); border: 1px solid hsla(142,60%,50%,0.3); }
+    .badge-medium   { background: hsla(38,90%,56%,0.15); color: var(--amber); border: 1px solid hsla(38,90%,56%,0.3); }
+    .badge-high     { background: hsla(20,90%,58%,0.15); color: hsl(20,90%,65%); border: 1px solid hsla(20,90%,58%,0.3); }
+    .badge-critical { background: hsla(0,75%,62%,0.15); color: var(--red); border: 1px solid hsla(0,75%,62%,0.3); }
+
+    /* Confidence bar */
+    .conf-bar-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .conf-bar {
+      flex: 1;
+      height: 5px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 3px;
+      overflow: hidden;
+      min-width: 48px;
+    }
+
+    .conf-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.4s ease;
+    }
+
+    .conf-fill.high   { background: var(--green); }
+    .conf-fill.medium { background: var(--amber); }
+    .conf-fill.low    { background: var(--red); }
+
+    .conf-pct {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--muted2);
+      width: 28px;
+      text-align: right;
+    }
+
+    .override-yes { color: var(--amber); font-weight: 600; font-size: 11px; }
+
+    /* ── Customer Risk Profiles ──────────────────────────────────────── */
+    .profiles-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .search-input {
+      flex: 1;
+      background: var(--panel);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-input:focus { border-color: var(--primary); }
+    .search-input::placeholder { color: var(--muted); }
+
+    .sort-select {
+      background: var(--panel);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .profiles-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 14px;
+    }
+
+    .profile-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(12px);
+    }
+
+    .profile-card:hover {
+      border-color: var(--border2);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+
+    .profile-card.risk-low      { border-left: 3px solid var(--green); }
+    .profile-card.risk-medium   { border-left: 3px solid var(--amber); }
+    .profile-card.risk-high     { border-left: 3px solid hsl(20,90%,58%); }
+    .profile-card.risk-critical { border-left: 3px solid var(--red); }
+
+    .profile-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .profile-id {
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: -0.2px;
+    }
+
+    .risk-ring-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .risk-ring-svg { width: 56px; height: 56px; }
+
+    .risk-ring-score {
+      font-size: 14px;
+      font-weight: 800;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
+    .ring-track { fill: none; stroke: rgba(255,255,255,0.06); stroke-width: 5; }
+    .ring-fill  { fill: none; stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 0.6s ease; }
+
+    .ring-fill.low      { stroke: var(--green); }
+    .ring-fill.medium   { stroke: var(--amber); }
+    .ring-fill.high     { stroke: hsl(20,90%,58%); }
+    .ring-fill.critical { stroke: var(--red); }
+
+    .profile-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .pstat {
+      background: rgba(255,255,255,0.03);
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+
+    .pstat-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .pstat-value {
+      font-size: 14px;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    .ec-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+
+    .ec-tag {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--muted2);
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+
+    .txn-list {
+      display: none;
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+      margin-top: 4px;
+    }
+
+    .txn-list.open { display: block; }
+
+    .txn-list-title {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .txn-item {
+      font-size: 11px;
+      color: var(--muted2);
+      padding: 3px 0;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .txn-item:not(:last-child) {
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+
+    .expand-btn {
+      width: 100%;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 11px;
+      font-family: 'Inter', sans-serif;
+      padding: 5px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .expand-btn:hover { border-color: var(--border2); color: var(--text); }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+
+    .empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; }
+
+    /* ── Threshold Tuner ─────────────────────────────────────────────── */
+    .tuner-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .threshold-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .threshold-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(12px);
+    }
+
+    .tc-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted2);
+    }
+
+    .tc-value {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--primary);
+      letter-spacing: -0.5px;
+    }
+
+    .tc-desc {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .suggestion-area {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .analyze-btn-wrap {
+      margin-bottom: 4px;
+    }
+
+    .suggestion-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      backdrop-filter: blur(12px);
+      animation: rowIn 0.3s ease;
+    }
+
+    .suggestion-card.improvement {
+      border-left: 3px solid var(--green);
+    }
+
+    .suggestion-card.warning {
+      border-left: 3px solid var(--amber);
+    }
+
+    .suggestion-card.no-change {
+      border-left: 3px solid var(--muted);
+    }
+
+    .sugg-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .sugg-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+
+    .sugg-conf {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.07);
+      color: var(--muted2);
+    }
+
+    .sugg-values {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .sugg-current {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted2);
+      text-decoration: line-through;
+      text-decoration-color: var(--red);
+    }
+
+    .sugg-arrow { color: var(--muted); font-size: 14px; }
+
+    .sugg-proposed {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--green);
+      letter-spacing: -0.3px;
+    }
+
+    .impact-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 10px;
+    }
+
+    .impact-high   { background: hsla(0,75%,62%,0.15); color: var(--red); }
+    .impact-medium { background: hsla(38,90%,56%,0.15); color: var(--amber); }
+    .impact-low    { background: rgba(107,122,153,0.15); color: var(--muted); }
+
+    .sugg-reason {
+      font-size: 12px;
+      color: var(--muted2);
+      line-height: 1.5;
+    }
+
+    .assessment-card {
+      background: rgba(88,145,255,0.05);
+      border: 1px solid rgba(88,145,255,0.15);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      margin-bottom: 12px;
+    }
+
+    .assessment-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 6px;
+    }
+
+    .assessment-text {
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.15);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .no-suggestions {
+      text-align: center;
+      padding: 32px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    /* ── Assistant Floating ───────────────────────────────────────────── */
+    #assistantToggle {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--purple));
+      color: #fff;
+      font-size: 20px;
+      border: none;
+      cursor: pointer;
+      z-index: 1000;
+      box-shadow: 0 4px 20px hsla(220,80%,62%,0.45);
+      transition: all 0.2s ease;
+    }
+
+    #assistantToggle:hover {
+      transform: scale(1.08);
+      box-shadow: 0 6px 28px hsla(220,80%,62%,0.6);
+    }
+
+    #assistantPanel {
+      position: fixed;
+      bottom: 88px;
+      right: 24px;
+      width: 380px;
+      max-height: 520px;
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: 14px;
+      display: none;
+      flex-direction: column;
+      z-index: 1000;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+      animation: panelIn 0.2s ease;
+    }
+
+    @keyframes panelIn {
+      from { opacity: 0; transform: translateY(10px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    #assistantPanel.open { display: flex; }
+
+    #assistantHeader {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 700;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(90deg, hsla(220,80%,62%,0.08), transparent);
+      border-radius: 14px 14px 0 0;
+    }
+
+    .assistant-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .assistant-indicator {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    #assistantMessages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 360px;
+    }
+
+    .chat-msg {
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 9px 12px;
+      border-radius: 10px;
+      max-width: 90%;
+      white-space: pre-wrap;
+      animation: rowIn 0.2s ease;
+    }
+
+    .chat-msg.user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, var(--primary), var(--purple));
+      color: #fff;
+      border-radius: 10px 10px 2px 10px;
+    }
+
+    .chat-msg.assistant {
+      align-self: flex-start;
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      border-radius: 10px 10px 10px 2px;
+    }
+
+    .chat-msg.thinking {
+      align-self: flex-start;
+      color: var(--muted);
+      font-style: italic;
+      font-size: 12px;
+    }
+
+    #assistantInputWrap {
+      display: flex;
+      gap: 8px;
+      padding: 10px 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    #assistantInput {
+      flex: 1;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    #assistantInput:focus { border-color: var(--primary); }
+    #assistantInput::placeholder { color: var(--muted); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
+  </style>
+</head>
+<body>
+
+<!-- ── AI Assistant ─────────────────────────────────────────────────── -->
+<button id="assistantToggle" onclick="toggleAssistant()" title="Open AI Assistant">💬</button>
+
+<div id="assistantPanel">
+  <div id="assistantHeader">
+    <div class="assistant-title">
+      <div class="assistant-indicator"></div>
+      <span>Recovery Assistant</span>
+    </div>
+    <span style="color:var(--muted);font-size:18px;cursor:pointer;line-height:1;" onclick="toggleAssistant()">×</span>
+  </div>
+  <div id="assistantMessages">
+    <div class="chat-msg assistant">Hi! I have read-only access to this batch. Ask me things like:<br><br>• "Why was TXN-XXXX escalated?"<br>• "Show all overridden decisions"<br>• "What's the recovery rate for INSUFFICIENT_FUNDS?"</div>
+  </div>
+  <div id="assistantInputWrap">
+    <input id="assistantInput" type="text" placeholder="Ask about the batch…"
+      onkeydown="if(event.key==='Enter') sendAssistantMessage()" />
+    <button class="btn btn-primary btn-sm" onclick="sendAssistantMessage()">Send</button>
+  </div>
+</div>
+
+<!-- ── App Shell ────────────────────────────────────────────────────── -->
+<div class="app-shell">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-badge">
+        <div class="logo-icon">⚡</div>
+        <div>
+          <div>Revenue Agent</div>
+          <div class="logo-sub">AI-Powered Recovery</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-nav">
+      <div class="nav-label">Views</div>
+      <button class="nav-item active" id="nav-dashboard" onclick="switchTab('dashboard')">
+        <span class="nav-icon">📊</span> Live Dashboard
+      </button>
+      <button class="nav-item" id="nav-profiles" onclick="switchTab('profiles')">
+        <span class="nav-icon">👤</span> Customer Risk
+        <span class="nav-badge" id="profilesBadge">0</span>
+      </button>
+      <button class="nav-item" id="nav-tuner" onclick="switchTab('tuner')">
+        <span class="nav-icon">🎛️</span> Threshold Tuner
+      </button>
+    </div>
+
+    <div class="sidebar-status">
+      <div class="status-dot">
+        <div class="dot" id="statusDot"></div>
+        <span id="statusText">Idle</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <h1 id="pageTitle">Live Dashboard</h1>
+        <p id="pageSubtitle">Real-time transaction processing with AI guardrails</p>
+      </div>
+      <div class="topbar-right">
+        <div class="controls-row">
+          <div class="input-group">
+            <label for="batchSize">Batch:</label>
+            <input type="number" id="batchSize" value="35" min="1" max="200" />
+          </div>
+          <div class="progress-wrap">
+            <div class="progress-bar" id="progressBar"></div>
+          </div>
+          <span id="progressText">Idle</span>
+          <button class="btn btn-primary" id="runBtn" onclick="runBatch()">▶ Run Batch</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Page: Live Dashboard ─────────────────────────────────────── -->
+    <div class="page active" id="page-dashboard">
+
+      <!-- KPI Row -->
+      <div class="kpi-grid">
+        <div class="kpi-card blue">
+          <div class="kpi-label">Money at Risk</div>
+          <div class="kpi-value" id="mAtRisk">₹0</div>
+          <div class="kpi-sub" id="mAtRiskSub">— transactions</div>
+          <div class="kpi-glow"></div>
+        </div>
+        <div class="kpi-card green">
+          <div class="kpi-label">Total Recovered</div>
+          <div class="kpi-value" id="mRecovered">₹0</div>
+          <div class="kpi-sub" id="mRecoveredSub">of at-risk amount</div>
+          <div class="kpi-glow"></div>
+        </div>
+        <div class="kpi-card amber">
+          <div class="kpi-label">Recovery Rate</div>
+          <div class="kpi-value" id="mRate">0%</div>
+          <div class="kpi-sub" id="mRateSub">batch average</div>
+          <div class="kpi-glow"></div>
+        </div>
+        <div class="kpi-card red">
+          <div class="kpi-label">Escalations</div>
+          <div class="kpi-value" id="mEscalations">0</div>
+          <div class="kpi-sub" id="mEscalationsSub">requiring human review</div>
+          <div class="kpi-glow"></div>
+        </div>
+      </div>
+
+      <!-- Dashboard Grid -->
+      <div class="dash-grid">
+
+        <!-- Feed panel -->
+        <div class="panel-card">
+          <div class="panel-title">
+            <div class="panel-title-dot" id="feedDot"></div>
+            Live Transaction Feed
+          </div>
+          <div class="feed-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Txn ID</th>
+                  <th>Amount</th>
+                  <th>Error</th>
+                  <th>Action</th>
+                  <th>Confidence</th>
+                  <th>Override</th>
+                  <th>Recovered</th>
+                </tr>
+              </thead>
+              <tbody id="feedBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Right sidebar charts + gauge -->
+        <div style="display:flex;flex-direction:column;gap:14px;">
+
+          <!-- Recovery gauge -->
+          <div class="panel-card">
+            <div class="panel-title">Recovery Gauge</div>
+            <div class="gauge-wrap">
+              <svg class="gauge-svg" viewBox="0 0 180 100">
+                <defs>
+                  <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%"   stop-color="hsl(0,75%,62%)" />
+                    <stop offset="50%"  stop-color="hsl(38,90%,56%)" />
+                    <stop offset="100%" stop-color="hsl(142,60%,50%)" />
+                  </linearGradient>
+                </defs>
+                <!-- Track -->
+                <path d="M 20 90 A 70 70 0 0 1 160 90"
+                  fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="12" stroke-linecap="round"/>
+                <!-- Fill -->
+                <path id="gaugeFill" d="M 20 90 A 70 70 0 0 1 160 90"
+                  fill="none" stroke="url(#gaugeGrad)" stroke-width="12" stroke-linecap="round"
+                  stroke-dasharray="220" stroke-dashoffset="220"
+                  style="transition: stroke-dashoffset 0.6s ease;"/>
+                <!-- Tick marks -->
+                <text x="14" y="102" font-size="8" fill="#6b7a99" font-family="Inter">0%</text>
+                <text x="82" y="18" font-size="8" fill="#6b7a99" font-family="Inter" text-anchor="middle">50%</text>
+                <text x="163" y="102" font-size="8" fill="#6b7a99" font-family="Inter">100%</text>
+              </svg>
+              <div class="gauge-value-label" id="gaugeValue">0%</div>
+              <div class="gauge-sub-label">Recovery Rate</div>
+            </div>
+          </div>
+
+          <!-- Mini charts -->
+          <div class="panel-card">
+            <div class="panel-title">Actions Taken</div>
+            <canvas id="actionChart"></canvas>
+          </div>
+
+          <div class="panel-card">
+            <div class="panel-title">Root Cause Breakdown</div>
+            <canvas id="causeChart"></canvas>
+          </div>
+
+        </div>
+      </div>
+    </div><!-- /page-dashboard -->
+
+    <!-- ── Page: Customer Risk Profiles ────────────────────────────── -->
+    <div class="page" id="page-profiles">
+      <div class="profiles-toolbar">
+        <input class="search-input" id="profileSearch" type="text"
+          placeholder="Search customer ID…" oninput="renderProfiles()" />
+        <select class="sort-select" id="profileSort" onchange="renderProfiles()">
+          <option value="risk">Sort: Risk Score ↓</option>
+          <option value="amount">Sort: Amount ↓</option>
+          <option value="escalations">Sort: Escalations ↓</option>
+          <option value="transactions">Sort: Transactions ↓</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="fetchAndRenderProfiles()">↻ Refresh</button>
+      </div>
+      <div class="profiles-grid" id="profilesGrid">
+        <div class="empty-state" style="grid-column:1/-1;">
+          <div class="empty-icon">👤</div>
+          <p>Run a batch to see customer risk profiles</p>
+        </div>
+      </div>
+    </div><!-- /page-profiles -->
+
+    <!-- ── Page: Threshold Tuner ───────────────────────────────────── -->
+    <div class="page" id="page-tuner">
+      <div class="tuner-grid">
+
+        <!-- Current thresholds -->
+        <div>
+          <div class="panel-title" style="margin-bottom:14px;">
+            <span class="nav-icon">🔒</span> Current Safety Thresholds
+            <span style="margin-left:auto;font-size:10px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;">Read-only · Never auto-modified</span>
+          </div>
+          <div class="threshold-cards" id="thresholdCards">
+            <div style="color:var(--muted);font-size:13px;padding:16px;">Loading thresholds…</div>
+          </div>
+        </div>
+
+        <!-- AI Suggestions -->
+        <div class="suggestion-area">
+          <div class="panel-title" style="margin-bottom:14px;">
+            <span class="nav-icon">🧠</span> AI Threshold Analysis
+          </div>
+          <div class="analyze-btn-wrap">
+            <button class="btn btn-primary" id="analyzeBtn" onclick="runThresholdAnalysis()" style="width:100%;">
+              🔍 Analyze Last Batch
+            </button>
+            <p style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center;">
+              Advisory only — suggestions are never auto-applied
+            </p>
+          </div>
+          <div id="suggestionsContainer">
+            <div style="color:var(--muted);font-size:13px;padding:16px;text-align:center;">
+              Run a batch, then click Analyze to get AI recommendations.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /page-tuner -->
+
+  </div><!-- /main -->
+</div><!-- /app-shell -->
+
+<script>
+  /* ── State ──────────────────────────────────────────────────────────── */
+  let ws = null;
+  let totalAtRisk = 0, totalRecovered = 0, escalations = 0;
+  let expectedTotal = 0, processedCount = 0;
+  let causeCounts = {}, actionCounts = {};
+  let causeChart = null, actionChart = null;
+  let assistantHistory = [];
+  let allProfiles = [];
+  let batchComplete = false;
+
+  /* ── Tab switching ──────────────────────────────────────────────────── */
+  const tabMeta = {
+    dashboard: { title: 'Live Dashboard',        subtitle: 'Real-time transaction processing with AI guardrails' },
+    profiles:  { title: 'Customer Risk Profiles', subtitle: 'Aggregated risk scoring across batch transactions' },
+    tuner:     { title: 'Threshold Tuner',        subtitle: 'AI-driven advisory analysis — suggestions never auto-applied' },
+  };
+
+  function switchTab(tab) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-' + tab).classList.add('active');
+    document.getElementById('nav-' + tab).classList.add('active');
+    document.getElementById('pageTitle').textContent = tabMeta[tab].title;
+    document.getElementById('pageSubtitle').textContent = tabMeta[tab].subtitle;
+
+    if (tab === 'profiles') fetchAndRenderProfiles();
+    if (tab === 'tuner') loadCurrentThresholds();
+  }
+
+  /* ── Formatting ─────────────────────────────────────────────────────── */
+  function fmtMoney(n) {
+    return '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  }
+
+  function fmtPct(n) { return Number(n).toFixed(1) + '%'; }
+
+  /* ── Charts ─────────────────────────────────────────────────────────── */
+  Chart.defaults.color = '#6b7a99';
+  Chart.defaults.font.family = 'Inter';
+
+  if (typeof Chart !== 'undefined') {
+    actionChart = new Chart(document.getElementById('actionChart'), {
+      type: 'doughnut',
+      data: {
+        labels: [],
+        datasets: [{
+          data: [],
+          backgroundColor: [
+            'hsla(0,75%,62%,0.8)',
+            'hsla(142,60%,50%,0.8)',
+            'hsla(220,80%,62%,0.8)',
+            'hsla(38,90%,56%,0.8)',
+            'hsla(260,70%,65%,0.8)',
+          ],
+          borderWidth: 0,
+          hoverOffset: 6,
+        }]
+      },
+      options: {
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: '#8892ab', font: { size: 10 }, boxWidth: 10, padding: 10 }
+          }
+        },
+        cutout: '68%',
+      }
+    });
+
+    causeChart = new Chart(document.getElementById('causeChart'), {
+      type: 'bar',
+      data: {
+        labels: [],
+        datasets: [{
+          data: [],
+          backgroundColor: 'hsla(220,80%,62%,0.7)',
+          borderRadius: 4,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#6b7a99', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { ticks: { color: '#e8edf5', font: { size: 10 } }, grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  /* ── Gauge ──────────────────────────────────────────────────────────── */
+  function updateGauge(pct) {
+    const fill = document.getElementById('gaugeFill');
+    const label = document.getElementById('gaugeValue');
+    const totalArc = 220;
+    const offset = totalArc - (Math.min(100, pct) / 100) * totalArc;
+    fill.style.strokeDashoffset = offset;
+    label.textContent = pct.toFixed(1) + '%';
+
+    if (pct < 30) label.style.color = 'var(--red)';
+    else if (pct < 60) label.style.color = 'var(--amber)';
+    else label.style.color = 'var(--green)';
+  }
+
+  /* ── Metrics ────────────────────────────────────────────────────────── */
+  function updateMetrics() {
+    document.getElementById('mAtRisk').textContent = fmtMoney(totalAtRisk);
+    document.getElementById('mAtRiskSub').textContent = processedCount + ' transactions';
+    document.getElementById('mRecovered').textContent = fmtMoney(totalRecovered);
+    const rate = totalAtRisk > 0 ? (totalRecovered / totalAtRisk * 100) : 0;
+    document.getElementById('mRecoveredSub').textContent = fmtPct(rate) + ' of at-risk amount';
+    document.getElementById('mRate').textContent = fmtPct(rate);
+    document.getElementById('mEscalations').textContent = escalations;
+    document.getElementById('mEscalationsSub').textContent =
+      processedCount > 0 ? fmtPct(escalations / processedCount * 100) + ' of batch' : 'requiring human review';
+    updateGauge(rate);
+  }
+
+  /* ── Charts update ──────────────────────────────────────────────────── */
+  function updateCharts() {
+    if (!causeChart || !actionChart) return;
+    const causeEntries = Object.entries(causeCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
+    causeChart.data.labels = causeEntries.map(e => e[0].replace('Customer ', '').replace(' issue', ''));
+    causeChart.data.datasets[0].data = causeEntries.map(e => e[1]);
+    causeChart.update('none');
+
+    const actionEntries = Object.entries(actionCounts);
+    actionChart.data.labels = actionEntries.map(e => e[0].replace(/_/g, ' '));
+    actionChart.data.datasets[0].data = actionEntries.map(e => e[1]);
+    actionChart.update('none');
+  }
+
+  /* ── Confidence bar ─────────────────────────────────────────────────── */
+  function confBar(confidence) {
+    if (confidence == null) {
+      return '<span style="color:var(--muted);font-size:11px;">—</span>';
+    }
+    const pct = Math.round(confidence * 100);
+    const cls = pct >= 70 ? 'high' : pct >= 40 ? 'medium' : 'low';
+    return `<div class="conf-bar-wrap">
+      <div class="conf-bar"><div class="conf-fill ${cls}" style="width:${pct}%"></div></div>
+      <span class="conf-pct">${pct}%</span>
+    </div>`;
+  }
+
+  /* ── Feed row ───────────────────────────────────────────────────────── */
+  function prependFeedRow(data) {
+    const tbody = document.getElementById('feedBody');
+    const row = document.createElement('tr');
+    const actionClass = 'badge badge-' + data.action;
+    const overrideHtml = data.overridden
+      ? `<span class="override-yes" title="${data.override_reason || ''}">⚠ YES</span>`
+      : '<span style="color:var(--muted);">—</span>';
+    row.innerHTML = `
+      <td style="font-family:'SF Mono','Fira Code',monospace;font-size:11px;color:var(--muted2);">${data.transaction_id}</td>
+      <td style="font-weight:600;">${fmtMoney(data.amount_inr)}</td>
+      <td><span style="font-size:10px;color:var(--muted2);">${data.error_code}</span></td>
+      <td><span class="${actionClass}">${data.action.replace(/_/g,' ')}</span></td>
+      <td>${confBar(data.confidence)}</td>
+      <td>${overrideHtml}</td>
+      <td style="color:${data.recovered_inr > 0 ? 'var(--green)' : 'var(--muted)'};">${data.recovered_inr > 0 ? fmtMoney(data.recovered_inr) : '—'}</td>
+    `;
+    tbody.prepend(row);
+  }
+
+  /* ── WebSocket ──────────────────────────────────────────────────────── */
+  function connectWebSocket() {
+    ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/live');
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.__event__ === 'batch_complete') {
+        document.getElementById('progressText').textContent = '✓ Complete';
+        document.getElementById('progressBar').style.width = '100%';
+        document.getElementById('runBtn').disabled = false;
+        document.getElementById('statusDot').className = 'dot';
+        document.getElementById('statusText').textContent = 'Idle';
+        document.getElementById('feedDot').style.animation = 'none';
+        batchComplete = true;
+        fetchAndRenderProfiles();
+        return;
+      }
+
+      if (data.__event__ === 'batch_error') {
+        document.getElementById('progressText').textContent = '✗ Error';
+        document.getElementById('runBtn').disabled = false;
+        return;
+      }
+
+      processedCount++;
+      totalAtRisk    += data.amount_inr;
+      totalRecovered += data.recovered_inr;
+      if (data.escalated) escalations++;
+
+      causeCounts[data.root_cause] = (causeCounts[data.root_cause] || 0) + 1;
+      actionCounts[data.action]    = (actionCounts[data.action] || 0) + 1;
+
+      updateMetrics();
+      updateCharts();
+      prependFeedRow(data);
+
+      if (expectedTotal > 0) {
+        const pct = Math.min(100, processedCount / expectedTotal * 100);
+        document.getElementById('progressBar').style.width = pct + '%';
+        document.getElementById('progressText').textContent = `${processedCount} / ${expectedTotal}`;
+      }
+    };
+
+    ws.onclose = () => setTimeout(connectWebSocket, 1500);
+    ws.onerror = () => {};
+  }
+
+  /* ── Run batch ──────────────────────────────────────────────────────── */
+  async function runBatch() {
+    const n = parseInt(document.getElementById('batchSize').value, 10);
+    expectedTotal = n;
+    processedCount = 0;
+    totalAtRisk = totalRecovered = escalations = 0;
+    causeCounts = {}; actionCounts = {};
+    allProfiles = []; batchComplete = false;
+
+    document.getElementById('feedBody').innerHTML = '';
+    document.getElementById('progressBar').style.width = '0%';
+    document.getElementById('progressText').textContent = 'Starting…';
+    document.getElementById('runBtn').disabled = true;
+    document.getElementById('statusDot').className = 'dot running';
+    document.getElementById('statusText').textContent = 'Processing…';
+    document.getElementById('feedDot').style.animation = 'pulse-dot 1.2s ease-in-out infinite';
+    document.getElementById('suggestionsContainer').innerHTML =
+      '<div style="color:var(--muted);font-size:13px;padding:16px;text-align:center;">Run a batch, then click Analyze to get AI recommendations.</div>';
+
+    updateMetrics();
+    updateCharts();
+
+    await fetch(`/api/batch/run?n=${n}`, { method: 'POST' });
+    // update profile badge after a short delay
+    setTimeout(() => {
+      const badge = document.getElementById('profilesBadge');
+      badge.textContent = n;
+      badge.classList.add('visible');
+    }, 500);
+  }
+
+  /* ── Customer Profiles ──────────────────────────────────────────────── */
+  async function fetchAndRenderProfiles() {
+    try {
+      const res = await fetch('/api/customers/profiles');
+      allProfiles = await res.json();
+      renderProfiles();
+      if (allProfiles.length > 0) {
+        const badge = document.getElementById('profilesBadge');
+        badge.textContent = allProfiles.length;
+        badge.classList.add('visible');
+      }
+    } catch(e) {}
+  }
+
+  function renderProfiles() {
+    const grid = document.getElementById('profilesGrid');
+    const search = document.getElementById('profileSearch').value.toLowerCase();
+    const sort = document.getElementById('profileSort').value;
+
+    let profiles = allProfiles.filter(p =>
+      p.customer_id.toLowerCase().includes(search)
+    );
+
+    if (sort === 'risk')         profiles.sort((a,b) => b.risk_score - a.risk_score);
+    else if (sort === 'amount')  profiles.sort((a,b) => b.total_failed_amount_inr - a.total_failed_amount_inr);
+    else if (sort === 'escalations') profiles.sort((a,b) => b.escalation_count - a.escalation_count);
+    else if (sort === 'transactions') profiles.sort((a,b) => b.transaction_count - a.transaction_count);
+
+    if (profiles.length === 0) {
+      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">
+        <div class="empty-icon">👤</div>
+        <p>${allProfiles.length === 0 ? 'Run a batch to see customer risk profiles' : 'No customers match your search'}</p>
+      </div>`;
+      return;
+    }
+
+    grid.innerHTML = profiles.map(p => profileCardHTML(p)).join('');
+  }
+
+  function riskRingSVG(score, label) {
+    const circumference = 2 * Math.PI * 22; // r=22
+    const dashoffset = circumference - (score / 100) * circumference;
+    const cls = label.toLowerCase();
+    return `<svg class="risk-ring-svg" viewBox="0 0 56 56">
+      <circle class="ring-track" cx="28" cy="28" r="22"/>
+      <circle class="ring-fill ${cls}" cx="28" cy="28" r="22"
+        stroke-dasharray="${circumference.toFixed(1)}"
+        stroke-dashoffset="${dashoffset.toFixed(1)}"
+        transform="rotate(-90 28 28)"/>
+      <text class="risk-ring-score" x="28" y="29"
+        font-family="Inter" font-size="11" font-weight="800"
+        fill="${cls==='low'?'#4ade80':cls==='medium'?'#fbbf24':cls==='high'?'#fb923c':'#f87171'}"
+        text-anchor="middle" dominant-baseline="middle">${score}</text>
+    </svg>`;
+  }
+
+  function profileCardHTML(p) {
+    const ecTags = p.error_codes.map(ec =>
+      `<span class="ec-tag">${ec.replace(/_/g,' ')}</span>`
+    ).join('');
+
+    const txnItems = p.transaction_ids.slice(0, 5).map(tid =>
+      `<div class="txn-item"><span>${tid}</span></div>`
+    ).join('');
+
+    const moreCount = p.transaction_ids.length - 5;
+
+    return `<div class="profile-card risk-${p.risk_label.toLowerCase()}" id="pc-${p.customer_id}">
+      <div class="profile-header">
+        <div>
+          <div class="profile-id">${p.customer_id}</div>
+          <div style="margin-top:4px;display:flex;gap:6px;align-items:center;">
+            <span class="badge badge-${p.risk_label.toLowerCase()}">${p.risk_label} Risk</span>
+            <span style="font-size:10px;color:var(--muted);">${p.segment}</span>
+          </div>
+        </div>
+        <div class="risk-ring-wrap">
+          ${riskRingSVG(p.risk_score, p.risk_label)}
+        </div>
+      </div>
+      <div class="profile-stats">
+        <div class="pstat">
+          <div class="pstat-label">At Risk</div>
+          <div class="pstat-value" style="color:var(--primary);">${fmtMoney(p.total_failed_amount_inr)}</div>
+        </div>
+        <div class="pstat">
+          <div class="pstat-label">Recovered</div>
+          <div class="pstat-value" style="color:var(--green);">${fmtMoney(p.total_recovered_inr)}</div>
+        </div>
+        <div class="pstat">
+          <div class="pstat-label">Transactions</div>
+          <div class="pstat-value">${p.transaction_count}</div>
+        </div>
+        <div class="pstat">
+          <div class="pstat-label">Escalated</div>
+          <div class="pstat-value" style="color:${p.escalation_count>0?'var(--red)':'var(--muted)'};">${p.escalation_count}</div>
+        </div>
+      </div>
+      <div class="ec-tags">${ecTags}</div>
+      <div>
+        <button class="expand-btn" onclick="toggleTxnList('${p.customer_id}', this)">
+          Show ${p.transaction_ids.length} transaction${p.transaction_ids.length !== 1 ? 's' : ''}
+        </button>
+        <div class="txn-list" id="txnlist-${p.customer_id}">
+          <div class="txn-list-title">Transactions</div>
+          ${txnItems}
+          ${moreCount > 0 ? `<div style="font-size:11px;color:var(--muted);padding-top:4px;">+${moreCount} more</div>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function toggleTxnList(cid, btn) {
+    const list = document.getElementById('txnlist-' + cid);
+    const open = list.classList.toggle('open');
+    btn.textContent = open
+      ? 'Hide transactions'
+      : `Show ${document.querySelectorAll('#txnlist-' + cid + ' .txn-item').length} transaction(s)`;
+  }
+
+  /* ── Threshold Tuner ────────────────────────────────────────────────── */
+  async function loadCurrentThresholds() {
+    try {
+      const res = await fetch('/api/thresholds/current');
+      const data = await res.json();
+      const container = document.getElementById('thresholdCards');
+
+      const definitions = {
+        MAX_RETRY_ATTEMPTS:    { label: 'Max Retry Attempts', desc: 'Max retries before forced escalation', fmt: v => String(v) },
+        ESCALATION_VALUE_INR:  { label: 'Escalation Value', desc: 'High-value threshold for auto-escalation', fmt: v => fmtMoney(v) },
+        NUDGE_COOLDOWN_HOURS:  { label: 'Nudge Cooldown', desc: 'Min hours between nudges per customer', fmt: v => v + 'h' },
+        MIN_RETRY_DELAY_HOURS: { label: 'Min Retry Delay', desc: 'Minimum hours before scheduling a retry', fmt: v => v + 'h' },
+        MAX_RETRY_DELAY_HOURS: { label: 'Max Retry Delay', desc: 'Maximum hours before scheduling a retry', fmt: v => v + 'h' },
+      };
+
+      container.innerHTML = Object.entries(definitions)
+        .filter(([key]) => key in data)
+        .map(([key, def]) => `
+          <div class="threshold-card">
+            <div>
+              <div class="tc-name">${def.label}</div>
+              <div class="tc-desc">${def.desc}</div>
+            </div>
+            <div>
+              <div class="tc-value">${def.fmt(data[key])}</div>
+            </div>
+          </div>`).join('');
+
+      // Hard stop codes
+      if (data.HARD_STOP_ERROR_CODES) {
+        container.innerHTML += `<div class="threshold-card" style="flex-direction:column;align-items:flex-start;gap:8px;">
+          <div class="tc-name">Hard Stop Codes</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            ${data.HARD_STOP_ERROR_CODES.map(c => `<span class="ec-tag">${c.replace(/_/g,' ')}</span>`).join('')}
+          </div>
+        </div>`;
+      }
+    } catch(e) {}
+  }
+
+  async function runThresholdAnalysis() {
+    const btn = document.getElementById('analyzeBtn');
+    const container = document.getElementById('suggestionsContainer');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="loading-spinner"></div> Analyzing…';
+    container.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:32px;color:var(--muted);font-size:13px;">
+      <div class="loading-spinner"></div> Running LLM analysis on batch override patterns…
+    </div>`;
+
+    try {
+      const res = await fetch('/api/thresholds/analyze', { method: 'POST' });
+      if (!res.ok) {
+        const err = await res.json();
+        container.innerHTML = `<div style="color:var(--red);font-size:13px;padding:16px;">
+          ⚠ ${err.error || 'Analysis failed. Run a batch first.'}
+        </div>`;
+        return;
+      }
+
+      const data = await res.json();
+      renderThresholdSuggestions(data);
+    } catch(e) {
+      container.innerHTML = `<div style="color:var(--red);font-size:13px;padding:16px;">Network error. Make sure the server is running.</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '🔍 Analyze Last Batch';
+    }
+  }
+
+  function renderThresholdSuggestions(data) {
+    const container = document.getElementById('suggestionsContainer');
+    let html = '';
+
+    if (data.overall_assessment) {
+      html += `<div class="assessment-card">
+        <div class="assessment-title">🔍 Overall Assessment</div>
+        <div class="assessment-text">${data.overall_assessment}</div>
+      </div>`;
+    }
+
+    const suggestions = data.suggestions || [];
+    if (suggestions.length === 0) {
+      html += `<div class="no-suggestions">
+        <div style="font-size:28px;margin-bottom:8px;">✅</div>
+        <div>Thresholds appear well-calibrated for this batch.</div>
+        <div style="font-size:11px;margin-top:4px;">No adjustments suggested.</div>
+      </div>`;
+    } else {
+      suggestions.forEach(s => {
+        const dirClass = s.direction === 'increase' ? 'improvement' :
+                         s.direction === 'decrease' ? 'improvement' : 'no-change';
+        const confPct = Math.round((s.confidence || 0) * 100);
+        const arrow = s.direction === 'increase' ? '↑' : s.direction === 'decrease' ? '↓' : '→';
+
+        html += `<div class="suggestion-card ${dirClass}">
+          <div class="sugg-header">
+            <span class="sugg-name">${s.threshold_name}</span>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <span class="impact-badge impact-${s.impact || 'low'}">${(s.impact||'low').toUpperCase()}</span>
+              <span class="sugg-conf">${confPct}% conf</span>
+            </div>
+          </div>
+          <div class="sugg-values">
+            <span class="sugg-current">${s.current_value}</span>
+            <span class="sugg-arrow">${arrow}</span>
+            <span class="sugg-proposed">${s.proposed_value}</span>
+          </div>
+          <div class="sugg-reason">${s.reasoning}</div>
+        </div>`;
+      });
+    }
+
+    container.innerHTML = html;
+  }
+
+  /* ── AI Assistant ───────────────────────────────────────────────────── */
+  function toggleAssistant() {
+    document.getElementById('assistantPanel').classList.toggle('open');
+  }
+
+  function appendChatMsg(role, text) {
+    const box = document.getElementById('assistantMessages');
+    const div = document.createElement('div');
+    div.className = 'chat-msg ' + role;
+    div.textContent = text;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+    return div;
+  }
+
+  async function sendAssistantMessage() {
+    const input = document.getElementById('assistantInput');
+    const message = input.value.trim();
+    if (!message) return;
+    appendChatMsg('user', message);
+    input.value = '';
+    const thinking = appendChatMsg('thinking', 'Looking into it…');
+    try {
+      const res = await fetch('/api/assistant/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, history: assistantHistory }),
+      });
+      const data = await res.json();
+      thinking.remove();
+      appendChatMsg('assistant', data.reply);
+      assistantHistory.push({ role: 'user', content: message });
+      assistantHistory.push({ role: 'assistant', content: data.reply });
+      if (assistantHistory.length > 12) assistantHistory = assistantHistory.slice(-12);
+    } catch(e) {
+      thinking.remove();
+      appendChatMsg('assistant', 'Something went wrong. Try again.');
+    }
+  }
+
+  /* ── Boot ───────────────────────────────────────────────────────────── */
+  connectWebSocket();
+  loadCurrentThresholds();
+
+  // Pre-load any existing batch results on page refresh
+  (async () => {
+    try {
+      const res = await fetch('/api/batch/results');
+      const data = await res.json();
+      if (data.results && data.results.length > 0) {
+        data.results.forEach(r => {
+          processedCount++;
+          totalAtRisk    += r.amount_inr;
+          totalRecovered += r.recovered_inr;
+          if (r.escalated) escalations++;
+          causeCounts[r.root_cause] = (causeCounts[r.root_cause] || 0) + 1;
+          actionCounts[r.action]    = (actionCounts[r.action] || 0) + 1;
+        });
+        if (!data.running) {
+          document.getElementById('progressBar').style.width = '100%';
+          document.getElementById('progressText').textContent = '✓ Complete';
+        }
+        updateMetrics();
+        updateCharts();
+        data.results.slice().reverse().forEach(r => prependFeedRow(r));
+        await fetchAndRenderProfiles();
+      }
+    } catch(e) {}
+  })();
+</script>
+</body>
+</html>
